@@ -32,7 +32,9 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/api/photo/upload").permitAll()
+                                "/api/photo/upload",
+                                "/api/plate/recognize",
+                                "/api/blacklist/add").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

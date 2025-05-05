@@ -36,4 +36,5 @@ public class PhotoController {
         return ResponseEntity.ok("Uploaded successfully: " + fileName);
     }
 
+
 }
