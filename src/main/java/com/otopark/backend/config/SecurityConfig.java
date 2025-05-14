@@ -13,6 +13,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @EnableMethodSecurity
@@ -25,27 +30,53 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // 1) CORS’u etkinleştir
+                .cors().and()
+                // 2) CSRF’ı kapat (stateless REST API)
                 .csrf().disable()
+                // 3) Yetkilendirme kuralları
                 .authorizeHttpRequests(auth -> auth
-                        // 1) Auth ve Swagger uç noktalarına açık
+                        // Açık API’ler
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/api/park/photo",
-                                "/api/park/status"
+                                "/api/park/status",
+                                // → WebSocket handshake için
+                                "/ws/**"
                         ).permitAll()
-                        // 2) Yalnızca ADMIN rolü
+                        // (Opsiyonel) STOMP prefix’leri, eğer HTTP üzerinden de erişiliyorsa
+                        .requestMatchers("/topic/**", "/app/**").permitAll()
+                        // Sadece ADMIN rolü
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        // 3) Geri kalan her şeye auth gerekli
+                        // Geriye kalan her şey yetki ister
                         .anyRequest().authenticated()
                 )
-                // UserDetailsService’i kaydet ve JWT filtresini ekle
+                // 4) UserDetailsService ve JWT filtresi
                 .userDetailsService(userDetailsService)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Tüm URL’ler için CORS yapılandırması
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+        // Frontend’in host’u
+        config.setAllowedOrigins(List.of("http://localhost:3000"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // WebSocket handshake (GET /ws/occupancy/info) dahil tüm endpoint’ler
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 
     @Bean
